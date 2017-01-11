@@ -29,25 +29,14 @@
   [configuration]
   (let [font (PdfFontFactory/createFont
                (FontProgramFactory/createFont FontConstants/HELVETICA))]
-    (-> (new Paragraph (:personalisationMessage configuration))
+    (-> (new Paragraph (:message configuration))
         (.setFont font)
-        (.setFontSize (:personalisationFontSize configuration)))))
-
-(defn calculate-x-value [media-box configuration]
-  (if (= (:relativeOffset configuration) "true")
-    (:personalisationRelativeXOffset configuration)
-    (:personalisationXOffset configuration)))
-
-(defn calculate-y-value [media-box configuration]
-  (if (= (:relativeYOffset configuration) "top")
-    (- (.getHeight media-box)
-       (:personalisationRelativeYOffset configuration))
-    (:personalisationYOffset configuration)))
+        (.setFontSize (:size configuration)))))
 
 (defn alignment
   "Returns alignment value"
   [configuration]
-  (let [alignment (:personalisationAlignment configuration)]
+  (let [alignment (:align configuration)]
   (cond (= alignment "LEFT") TextAlignment/LEFT
         (= alignment "RIGHT") TextAlignment/RIGHT
         :else TextAlignment/CENTER)))
@@ -101,12 +90,12 @@
                         (fn [ostream]
                           (watermark-document
                             ostream
-                            (stream-file (get data-parameter "s3Url"))
+                            (stream-file (get data-parameter "url"))
                             (create-paragraph properties-file)
                             properties-file))))
        (catch java.io.IOException ioe
          (println ioe)
-         (redirect (get properties-file "s3Url")))))
+         (redirect (get properties-file "url")))))
 
 (defn route [request]
   (cond (= request "") (println "status page pls")

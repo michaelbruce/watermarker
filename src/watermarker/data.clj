@@ -2,64 +2,81 @@
   (:require [clojure.walk :as walk]
             [clojure.data.json :only [read-str] :as json]
             [clojure.java.io :as io :only [file resource]]
-            [clojure.string :as str :only [split]])
+            [clojure.string :as str :only [split]]
+            [clojure.data.codec.base64 :refer [encode decode]]
+            [ring.util.codec :refer [url-encode url-decode]])
   (:import [java.util Base64]
            [com.itextpdf.kernel.crypto]
            [javax.crypto Cipher]
            [javax.crypto.spec SecretKeySpec IvParameterSpec]
            [java.net URLDecoder]))
 
-(def private-key (.getBytes "strong-private-key"))
-(def iv (.getBytes "example-iv"))
+
+(json/read-str
+  (url-decode
+    (decrypt-string
+      (encrypt-string
+        (url-encode {"template" "generic.properties"
+                     "url" "http://www.orimi.com/pdf-test.pdf"})))))
+
+(def private-key (byte-array (map byte '(6 3 7 8 3 7 6 2 3 4 7 8 9 8 7 7))))
+(def iv (byte-array (map byte '(8 3 7 3 6 4 8 2 9 2 8 2 7 6 4 3))))
 
 (def default-map
-  {:ownerPassword "example-password"
-   :userPassword ""
-   :personalisationMessage "This report is prepared solely for the use of {!Contact.Name}"
-   :personalisationColor "BLACK"
-   :personalisationAlignment "LEFT"
-   :personalisationAngle "0"
-   :personalisationFont "Helvetica"
-   :personalisationFontSize "10"
-   :personalisationXOffset "30"
-   :personalisationYOffset "30"
-   :relativeOffset  "false"
-   :relativeYOffset  "top"
-   :stampDensity "100"
-   :stampPageThreshold "1"
-   :stampPagePeriod "1"
-   :pageSize "A4"
-   :disableCopy "true"
-   :disableAssembly "true"
-   :disableFillIn "true"
-   :disableModifyAnnotation "true"
-   :disableModifyContent "true"
-   :disablePrinting "true"
-   :disableScreenreaders "true"})
+  {:owner-password "example-password"
+   :user-password "strong-password"
+   :message "Owned by {!Name}"
+   :color "black"
+   :align "center"
+   :angle 0
+   :font "Helvetica"
+   :font-size 12
+   :x-position 30
+   :y-position 30
+   :opacity 100
+   :page-size "A4"
+   :allow-copy true
+   :allow-printing true})
+
+(defn- include? [regex string]
+  (not (nil? (re-matches regex string))))
+
+(defn value-as-type [value]
+  (cond (include? #"[0-9]+" value) (Integer. value)
+        (include? #"^(?i)(true|false)$" value) (Boolean. value)
+        :else value))
 
 (defn load-properties-file
   "loads a .properties file from the resources folder"
   [file-name]
-  (with-open [^java.io.Reader reader (clojure.java.io/reader (io/resource (str "templates/" file-name)))] 
+  (with-open [^java.io.Reader reader
+              (clojure.java.io/reader (io/resource (str "templates/" file-name)))]
     (merge default-map (let [props (java.util.Properties.)]
                          (.load props reader)
                          (into {} (for [[k v] props]
-                                    [(keyword k)
-                                     (if (re-matches #"[0-9]+" v) (Integer. v) v)]))))))
+                                    [(keyword k) (value-as-type v)]))))))
 
 (defn- data-as-map
-   [request]
-   ((walk/keywordize-keys
-      (apply hash-map
-             (str/split request #"(&|=)"))) :data))
+  [request]
+  ((walk/keywordize-keys
+     (apply hash-map
+            (str/split request #"(&|=)"))) :data))
 
 (defn decrypt-string [message]
-  (def original (.decode (. Base64 getDecoder) message))
   (let [cipher (Cipher/getInstance "AES/CBC/PKCS5Padding")]
-    (.init cipher Cipher/DECRYPT_MODE,
+    (.init cipher
+           Cipher/DECRYPT_MODE,
            (SecretKeySpec. private-key, "AES"),
            (IvParameterSpec. iv))
-    (def decrypted (.doFinal cipher original))) (String. decrypted, "UTF-8"))
+    (String. (.doFinal cipher (decode message)) "UTF-8")))
+
+(defn encrypt-string [message]
+  (let [cipher (Cipher/getInstance "AES/CBC/PKCS5Padding")]
+    (.init cipher
+           Cipher/ENCRYPT_MODE
+           (SecretKeySpec. private-key "AES")
+           (IvParameterSpec. iv))
+    (encode (.doFinal cipher (.getBytes message)))))
 
 (defn decrypt-http-request
   "Takes params for an http request as decrypts the data parameter"
