@@ -41,20 +41,20 @@
         (= alignment "RIGHT") TextAlignment/RIGHT
         :else TextAlignment/CENTER)))
 
-(defn apply-watermark [pdf-document document paragraph configuration page-number]
+(defn apply-watermark
   "Applys a watermark to a given page of a pdf document"
-  []
+  [pdf-document document paragraph configuration page-number]
   (let [media-box (-> pdf-document
                       (.getPage page-number)
                       (.getMediaBox))]
-    (println (calculate-x-value media-box configuration))
-    (println (calculate-y-value media-box configuration))
+    (println (:x-offset configuration) )
+    (println (:y-offset configuration))
     (.showTextAligned document
                       paragraph
                       ;; x coord
-                      (calculate-x-value media-box configuration)
+                      (:x-offset configuration)
                       ;; y coord
-                      (calculate-y-value media-box configuration)
+                      (:y-offset configuration)
                       page-number
                       (alignment configuration)
                       VerticalAlignment/BOTTOM
@@ -72,9 +72,9 @@
                            page-number))))) output-stream)
 
 (defn serve-pdf
-  "Takes an encrypted data string, requests a pdf from s3 and watermarks it. Outputs the pdf"
+  "Takes an encrypted data string, requests a pdf from url and watermarks it. Outputs the pdf"
   [http-request]
-  (println (str "Request for " (get http-request :uri)))
+  (println (str "Request for " (:uri http-request)))
 
   (def data-parameter (data/decrypt-http-request http-request))
   (def properties-file (data/load-properties-file (get data-parameter "template")))

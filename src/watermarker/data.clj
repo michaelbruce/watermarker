@@ -12,13 +12,6 @@
            [java.net URLDecoder]))
 
 
-(json/read-str
-  (url-decode
-    (decrypt-string
-      (encrypt-string
-        (url-encode {"template" "generic.properties"
-                     "url" "http://www.orimi.com/pdf-test.pdf"})))))
-
 (def private-key (byte-array (map byte '(6 3 7 8 3 7 6 2 3 4 7 8 9 8 7 7))))
 (def iv (byte-array (map byte '(8 3 7 3 6 4 8 2 9 2 8 2 7 6 4 3))))
 
@@ -81,7 +74,14 @@
 (defn decrypt-http-request
   "Takes params for an http request as decrypts the data parameter"
   [http-request]
-  (-> (URLDecoder/decode (data-as-map (http-request :query-string)) "UTF-8")
+  (-> (URLDecoder/decode (data-as-map (:query-string http-request)) "UTF-8")
       decrypt-string
       json/read-str))
+
+;; (json/read-str
+;;   (url-decode
+;;     (decrypt-string
+;;       (encrypt-string
+;;         (url-encode {"template" "generic.properties"
+;;                      "url" "http://www.orimi.com/pdf-test.pdf"})))))
 
