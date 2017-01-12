@@ -2,7 +2,7 @@
   (:require [clojure.walk :as walk]
             [clojure.data.json :only [read-str] :as json]
             [clojure.java.io :as io :only [file resource]]
-            [clojure.string :as str :only [split]]
+            [clojure.string :refer [split includes?]]
             [clojure.data.codec.base64 :refer [encode decode]]
             [ring.util.codec :refer [url-encode url-decode]])
   (:import [java.util Base64]
@@ -31,12 +31,9 @@
    :allow-copy true
    :allow-printing true})
 
-(defn- include? [regex string]
-  (not (nil? (re-matches regex string))))
-
 (defn value-as-type [value]
-  (cond (include? #"[0-9]+" value) (Integer. value)
-        (include? #"^(?i)(true|false)$" value) (Boolean. value)
+  (cond (includes? #"[0-9]+" value) (Integer. value)
+        (includes? #"^(?i)(true|false)$" value) (Boolean. value)
         :else value))
 
 (defn load-properties-file
@@ -53,7 +50,7 @@
   [request]
   ((walk/keywordize-keys
      (apply hash-map
-            (str/split request #"(&|=)"))) :data))
+            (split request #"(&|=)"))) :data))
 
 (defn decrypt-string [message]
   (let [cipher (Cipher/getInstance "AES/CBC/PKCS5Padding")]
