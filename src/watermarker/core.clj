@@ -51,9 +51,7 @@
     (println (:y-offset configuration))
     (.showTextAligned document
                       paragraph
-                      ;; x coord
                       (:x-offset configuration)
-                      ;; y coord
                       (:y-offset configuration)
                       page-number
                       (alignment configuration)
@@ -81,9 +79,6 @@
 
   (println properties-file)
   (println data-parameter)
-
-  ;; XXX prepare configuration from properties-file at this point
-  ;; (create-configuration properties-file)
 
   (try (serve-content "application/pdf"
                       (rio/piped-input-stream
